@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Plus, Search, Moon, LogOut, User, Filter } from 'lucide-react';
+import { ClipboardList, Plus, Search, Moon, LogOut, User, Filter, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import TodoItem from '@/components/TodoItem';
 import CreateTodoModal from '@/components/CreateTodoModal';
 import { MadeWithDyad } from "@/components/made-with-dyad";
 import { useAuth } from '@/components/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
+import { showSuccess, showError } from '@/utils/toast';
 
 export type Priority = 'Baixa' | 'Média' | 'Alta';
 
@@ -18,6 +20,7 @@ export interface Todo {
   completed: boolean;
   priority: Priority;
   dueDate?: string;
+  user_id: string;
 }
 
 const Index = () => {
@@ -27,44 +30,109 @@ const Index = () => {
   const [filter, setFilter] = useState<'Todas' | 'Pendentes' | 'Concluídas'>('Todas');
   const [priorityFilter, setPriorityFilter] = useState<string>('Todas');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Usando o ID do usuário para salvar tarefas específicas por conta
-    const storageKey = `dyad-tasks-${user?.id}`;
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      try {
-        setTodos(JSON.parse(saved));
-      } catch (e) {
-        console.error(e);
-      }
+  const fetchTodos = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('todos')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      
+      // Mapear campos do banco para o estado (snake_case para camelCase)
+      const mappedTodos = (data || []).map(t => ({
+        id: t.id,
+        title: t.title,
+        description: t.description,
+        completed: t.completed,
+        priority: t.priority as Priority,
+        dueDate: t.due_date,
+        user_id: t.user_id
+      }));
+
+      setTodos(mappedTodos);
+    } catch (error: any) {
+      showError("Erro ao carregar tarefas: " + error.message);
+    } finally {
+      setLoading(false);
     }
-    setIsLoaded(true);
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (isLoaded && user?.id) {
-      const storageKey = `dyad-tasks-${user?.id}`;
-      localStorage.setItem(storageKey, JSON.stringify(todos));
-    }
-  }, [todos, isLoaded, user?.id]);
-
-  const addTodo = (newTodo: Omit<Todo, 'id' | 'completed'>) => {
-    const task: Todo = {
-      ...newTodo,
-      id: Math.random().toString(36).substring(2, 9),
-      completed: false,
-    };
-    setTodos(prev => [task, ...prev]);
   };
 
-  const toggleTodo = (id: string) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  useEffect(() => {
+    if (user) {
+      fetchTodos();
+    }
+  }, [user]);
+
+  const addTodo = async (newTodo: { title: string; description: string; priority: Priority; dueDate: string }) => {
+    try {
+      const { data, error } = await supabase
+        .from('todos')
+        .insert([{
+          title: newTodo.title,
+          description: newTodo.description,
+          priority: newTodo.priority,
+          due_date: newTodo.dueDate || null,
+          user_id: user?.id,
+          completed: false
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const task: Todo = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        completed: data.completed,
+        priority: data.priority as Priority,
+        dueDate: data.due_date,
+        user_id: data.user_id
+      };
+
+      setTodos(prev => [task, ...prev]);
+      showSuccess("Tarefa criada com sucesso!");
+    } catch (error: any) {
+      showError("Erro ao criar tarefa: " + error.message);
+    }
   };
 
-  const deleteTodo = (id: string) => {
-    setTodos(prev => prev.filter(t => t.id !== id));
+  const toggleTodo = async (id: string) => {
+    const todo = todos.find(t => t.id === id);
+    if (!todo) return;
+
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .update({ completed: !todo.completed })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+    } catch (error: any) {
+      showError("Erro ao atualizar tarefa: " + error.message);
+    }
+  };
+
+  const deleteTodo = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('todos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setTodos(prev => prev.filter(t => t.id !== id));
+      showSuccess("Tarefa excluída!");
+    } catch (error: any) {
+      showError("Erro ao excluir tarefa: " + error.message);
+    }
   };
 
   const filteredTodos = todos.filter(t => {
@@ -81,7 +149,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
-      {/* Header */}
       <header className="bg-white border-b border-gray-100 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -99,9 +166,6 @@ const Index = () => {
                 {user?.email?.split('@')[0]}
               </span>
             </div>
-            <button className="text-gray-400 hover:text-gray-600 transition-colors">
-              <Moon className="w-5 h-5" />
-            </button>
             <button 
               onClick={() => signOut()}
               className="text-gray-400 hover:text-red-500 transition-colors"
@@ -114,7 +178,6 @@ const Index = () => {
       </header>
 
       <main className="max-w-5xl mx-auto p-6">
-        {/* Stats & Action */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4 text-sm text-gray-500 font-medium">
             <span>{todos.length} tarefas</span>
@@ -134,7 +197,6 @@ const Index = () => {
           </Button>
         </div>
 
-        {/* Search & Filters */}
         <div className="space-y-4 mb-8">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -177,9 +239,13 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Task List */}
         <div className="space-y-4">
-          {filteredTodos.length > 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <Loader2 className="w-10 h-10 animate-spin mb-4" />
+              <p>Carregando suas tarefas...</p>
+            </div>
+          ) : filteredTodos.length > 0 ? (
             filteredTodos.map(todo => (
               <TodoItem 
                 key={todo.id} 
