@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar as CalendarIcon, X } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Priority } from '@/pages/Index';
+import { cn } from '@/lib/utils';
 
 interface CreateTodoModalProps {
   isOpen: boolean;
@@ -76,10 +77,11 @@ const CreateTodoModal = ({ isOpen, onClose, onAdd }: CreateTodoModalProps) => {
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
+                  type="button"
                   className="h-14 rounded-2xl border-gray-100 bg-gray-50/50 justify-start text-left font-normal px-5 hover:bg-white"
                 >
                   <CalendarIcon className="mr-2 h-5 w-5 text-gray-400" />
-                  {date ? format(date, "dd/MM/yyyy") : <span className="text-gray-400">Data de vencimento</span>}
+                  {date ? format(date, "dd/MM/yyyy") : <span className="text-gray-400">Data</span>}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0 rounded-2xl border-none shadow-xl" align="start">
@@ -113,7 +115,7 @@ const CreateTodoModal = ({ isOpen, onClose, onAdd }: CreateTodoModalProps) => {
 
           <Button 
             type="submit" 
-            className="w-full h-14 bg-[#A5B4FC] hover:bg-blue-500 text-white rounded-2xl text-lg font-bold transition-all shadow-lg shadow-blue-100 mt-4"
+            className="w-full h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-lg font-bold transition-all shadow-lg shadow-blue-100 mt-4"
           >
             Criar tarefa
           </Button>
