@@ -14,15 +14,14 @@ interface Todo {
 }
 
 const Index = () => {
-  // Inicialização segura do estado
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Carregar dados apenas uma vez na montagem do componente
+  // Carregamento inicial
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('dyad-todos');
+      const saved = localStorage.getItem('dyad-todos-v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
@@ -30,40 +29,41 @@ const Index = () => {
         }
       }
     } catch (e) {
-      console.error("Erro ao carregar tarefas:", e);
+      console.error("Erro ao carregar:", e);
     }
     setIsLoaded(true);
   }, []);
 
-  // Salvar dados sempre que a lista mudar (após o carregamento inicial)
+  // Persistência
   useEffect(() => {
     if (isLoaded) {
       try {
-        localStorage.setItem('dyad-todos', JSON.stringify(todos));
+        localStorage.setItem('dyad-todos-v2', JSON.stringify(todos));
       } catch (e) {
-        console.error("Erro ao salvar tarefas:", e);
+        console.error("Erro ao salvar:", e);
       }
     }
   }, [todos, isLoaded]);
 
   const addTodo = (text: string) => {
     const newTodo: Todo = {
-      // Gerador de ID ultra-compatível
-      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
+      id: Date.now().toString() + Math.random().toString(36).substring(2),
       text,
       completed: false,
     };
-    setTodos(prev => [newTodo, ...prev]);
+    
+    // Usando a função de atualização de estado para garantir que pegamos o estado mais recente
+    setTodos(currentTodos => [newTodo, ...currentTodos]);
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(prev => prev.map(todo => 
+    setTodos(currentTodos => currentTodos.map(todo => 
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
     ));
   };
 
   const deleteTodo = (id: string) => {
-    setTodos(prev => prev.filter(todo => todo.id !== id));
+    setTodos(currentTodos => currentTodos.filter(todo => todo.id !== id));
   };
 
   const filteredTodos = todos.filter(todo => {
@@ -86,9 +86,9 @@ const Index = () => {
         <main className="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 p-6 md:p-8 border border-indigo-50/50">
           <TodoInput onAdd={addTodo} />
 
-          <div className="space-y-1 min-h-[300px]">
+          <div className="space-y-1 min-h-[200px]">
             {!isLoaded ? (
-              <div className="flex items-center justify-center h-[300px] text-gray-400">
+              <div className="flex items-center justify-center h-[200px] text-gray-400">
                 <p>Carregando...</p>
               </div>
             ) : filteredTodos.length > 0 ? (
@@ -101,9 +101,9 @@ const Index = () => {
                 />
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center h-[300px] text-gray-400">
+              <div className="flex flex-col items-center justify-center h-[200px] text-gray-400 text-center">
                 <p className="text-lg">Nenhuma tarefa encontrada.</p>
-                <p className="text-sm">Comece adicionando algo novo acima!</p>
+                <p className="text-sm">Digite algo e clique em Adicionar!</p>
               </div>
             )}
           </div>

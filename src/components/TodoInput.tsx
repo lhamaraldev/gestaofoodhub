@@ -2,9 +2,6 @@
 
 import React, { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { showSuccess } from '@/utils/toast';
 
 interface TodoInputProps {
   onAdd: (text: string) => void;
@@ -13,29 +10,41 @@ interface TodoInputProps {
 const TodoInput = ({ onAdd }: TodoInputProps) => {
   const [text, setText] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (text.trim()) {
-      onAdd(text.trim());
+  const handleAdd = () => {
+    const trimmedText = text.trim();
+    if (trimmedText) {
+      console.log("Adicionando tarefa:", trimmedText);
+      onAdd(trimmedText);
       setText('');
-      showSuccess("Tarefa adicionada com sucesso!");
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdd();
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 mb-6">
-      <Input
+    <div className="flex gap-2 mb-6">
+      <input
         type="text"
         placeholder="O que precisa ser feito?"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        className="flex-1 rounded-xl border-gray-200 focus-visible:ring-indigo-500"
+        onKeyDown={handleKeyDown}
+        className="flex-1 px-4 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white text-gray-900"
       />
-      <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6">
+      <button 
+        type="button"
+        onClick={handleAdd}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 py-2 flex items-center font-medium transition-colors active:scale-95"
+      >
         <Plus className="w-5 h-5 mr-2" />
         Adicionar
-      </Button>
-    </form>
+      </button>
+    </div>
   );
 };
 
