@@ -1,124 +1,197 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import TodoInput from '@/components/TodoInput';
+import { ClipboardList, Plus, Search, Moon, LogOut, User, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import TodoItem from '@/components/TodoItem';
-import TodoFilters, { FilterType } from '@/components/TodoFilters';
+import CreateTodoModal from '@/components/CreateTodoModal';
 import { MadeWithDyad } from "@/components/made-with-dyad";
-import { ClipboardList } from 'lucide-react';
 
-interface Todo {
+export type Priority = 'Baixa' | 'Média' | 'Alta';
+
+export interface Todo {
   id: string;
-  text: string;
+  title: string;
+  description?: string;
   completed: boolean;
+  priority: Priority;
+  dueDate?: string;
 }
 
 const Index = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'Todas' | 'Pendentes' | 'Concluídas'>('Todas');
+  const [priorityFilter, setPriorityFilter] = useState<string>('Todas');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Carregamento inicial
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('dyad-todos-v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          setTodos(parsed);
-        }
+    const saved = localStorage.getItem('dyad-tasks-v3');
+    if (saved) {
+      try {
+        setTodos(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
       }
-    } catch (e) {
-      console.error("Erro ao carregar:", e);
     }
     setIsLoaded(true);
   }, []);
 
-  // Persistência
   useEffect(() => {
     if (isLoaded) {
-      try {
-        localStorage.setItem('dyad-todos-v2', JSON.stringify(todos));
-      } catch (e) {
-        console.error("Erro ao salvar:", e);
-      }
+      localStorage.setItem('dyad-tasks-v3', JSON.stringify(todos));
     }
   }, [todos, isLoaded]);
 
-  const addTodo = (text: string) => {
-    const newTodo: Todo = {
-      id: Date.now().toString() + Math.random().toString(36).substring(2),
-      text,
+  const addTodo = (newTodo: Omit<Todo, 'id' | 'completed'>) => {
+    const task: Todo = {
+      ...newTodo,
+      id: Math.random().toString(36).substring(2, 9),
       completed: false,
     };
-    
-    // Usando a função de atualização de estado para garantir que pegamos o estado mais recente
-    setTodos(currentTodos => [newTodo, ...currentTodos]);
+    setTodos(prev => [task, ...prev]);
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(currentTodos => currentTodos.map(todo => 
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
+    setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
   };
 
   const deleteTodo = (id: string) => {
-    setTodos(currentTodos => currentTodos.filter(todo => todo.id !== id));
+    setTodos(prev => prev.filter(t => t.id !== id));
   };
 
-  const filteredTodos = todos.filter(todo => {
-    if (filter === 'active') return !todo.completed;
-    if (filter === 'completed') return todo.completed;
-    return true;
+  const filteredTodos = todos.filter(t => {
+    const matchesSearch = t.title.toLowerCase().includes(search.toLowerCase()) || 
+                         (t.description?.toLowerCase().includes(search.toLowerCase()) ?? false);
+    const matchesStatus = filter === 'Todas' ? true : 
+                         filter === 'Concluídas' ? t.completed : !t.completed;
+    const matchesPriority = priorityFilter === 'Todas' ? true : t.priority === priorityFilter;
+    
+    return matchesSearch && matchesStatus && matchesPriority;
   });
 
+  const completedCount = todos.filter(t => t.completed).length;
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <header className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-2xl mb-4">
-            <ClipboardList className="w-8 h-8 text-indigo-600" />
+    <div className="min-h-screen bg-[#F8FAFC]">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-100 px-6 py-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-600 p-1.5 rounded-lg">
+              <ClipboardList className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">Tarefas</h1>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2 tracking-tight">Minhas Tarefas</h1>
-          <p className="text-gray-500">Organize seu dia de forma simples e elegante.</p>
-        </header>
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-white" />
+            </div>
+            <button className="text-gray-500 hover:text-gray-700">
+              <Moon className="w-5 h-5" />
+            </button>
+            <button className="text-gray-500 hover:text-gray-700">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </header>
 
-        <main className="bg-white rounded-[2rem] shadow-xl shadow-indigo-100/50 p-6 md:p-8 border border-indigo-50/50">
-          <TodoInput onAdd={addTodo} />
+      <main className="max-w-5xl mx-auto p-6">
+        {/* Stats & Action */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-4 text-sm text-gray-500 font-medium">
+            <span>{todos.length} tarefas</span>
+            <span className="flex items-center gap-1 text-green-600">
+              <div className="w-4 h-4 rounded-full border-2 border-green-600 flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+              </div>
+              {completedCount} concluídas
+            </span>
+          </div>
+          <Button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-[#3B82F6] hover:bg-blue-700 text-white rounded-xl px-6 py-6 h-auto font-semibold flex items-center gap-2 shadow-lg shadow-blue-200"
+          >
+            <Plus className="w-5 h-5" />
+            Nova tarefa
+          </Button>
+        </div>
 
-          <div className="space-y-1 min-h-[200px]">
-            {!isLoaded ? (
-              <div className="flex items-center justify-center h-[200px] text-gray-400">
-                <p>Carregando...</p>
-              </div>
-            ) : filteredTodos.length > 0 ? (
-              filteredTodos.map(todo => (
-                <TodoItem 
-                  key={todo.id} 
-                  todo={todo} 
-                  onToggle={toggleTodo} 
-                  onDelete={deleteTodo} 
-                />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[200px] text-gray-400 text-center">
-                <p className="text-lg">Nenhuma tarefa encontrada.</p>
-                <p className="text-sm">Digite algo e clique em Adicionar!</p>
-              </div>
-            )}
+        {/* Search & Filters */}
+        <div className="space-y-4 mb-8">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Input 
+              placeholder="Buscar tarefas..." 
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-12 py-6 rounded-2xl border-gray-200 bg-white focus:ring-blue-500"
+            />
           </div>
 
-          <TodoFilters 
-            currentFilter={filter} 
-            onFilterChange={setFilter} 
-            total={filteredTodos.length} 
-          />
-        </main>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex bg-gray-100 p-1 rounded-xl">
+              {['Todas', 'Pendentes', 'Concluídas'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f as any)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    filter === f ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
 
-        <footer className="mt-12">
-          <MadeWithDyad />
-        </footer>
-      </div>
+            <div className="relative">
+              <select 
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="appearance-none bg-white border border-gray-200 rounded-xl px-10 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Todas">Todas</option>
+                <option value="Baixa">Baixa</option>
+                <option value="Média">Média</option>
+                <option value="Alta">Alta</option>
+              </select>
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Task List */}
+        <div className="space-y-4">
+          {filteredTodos.length > 0 ? (
+            filteredTodos.map(todo => (
+              <TodoItem 
+                key={todo.id} 
+                todo={todo} 
+                onToggle={toggleTodo} 
+                onDelete={deleteTodo} 
+              />
+            ))
+          ) : (
+            <div className="bg-white rounded-3xl p-12 text-center border border-dashed border-gray-200">
+              <p className="text-gray-400 text-lg">Nenhuma tarefa encontrada.</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <CreateTodoModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onAdd={addTodo} 
+      />
+
+      <footer className="py-8">
+        <MadeWithDyad />
+      </footer>
     </div>
   );
 };
