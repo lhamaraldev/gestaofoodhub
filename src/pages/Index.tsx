@@ -14,24 +14,42 @@ interface Todo {
 }
 
 const Index = () => {
-  const [todos, setTodos] = useState<Todo[]>(() => {
+  // Inicialização segura do estado
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Carregar dados apenas uma vez na montagem do componente
+  useEffect(() => {
     try {
       const saved = localStorage.getItem('dyad-todos');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          setTodos(parsed);
+        }
+      }
     } catch (e) {
-      return [];
+      console.error("Erro ao carregar tarefas:", e);
     }
-  });
-  const [filter, setFilter] = useState<FilterType>('all');
+    setIsLoaded(true);
+  }, []);
 
+  // Salvar dados sempre que a lista mudar (após o carregamento inicial)
   useEffect(() => {
-    localStorage.setItem('dyad-todos', JSON.stringify(todos));
-  }, [todos]);
+    if (isLoaded) {
+      try {
+        localStorage.setItem('dyad-todos', JSON.stringify(todos));
+      } catch (e) {
+        console.error("Erro ao salvar tarefas:", e);
+      }
+    }
+  }, [todos, isLoaded]);
 
   const addTodo = (text: string) => {
     const newTodo: Todo = {
-      // Usando um fallback caso crypto.randomUUID não esteja disponível
-      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      // Gerador de ID ultra-compatível
+      id: Math.random().toString(36).substring(2, 9) + Date.now().toString(36),
       text,
       completed: false,
     };
@@ -69,7 +87,11 @@ const Index = () => {
           <TodoInput onAdd={addTodo} />
 
           <div className="space-y-1 min-h-[300px]">
-            {filteredTodos.length > 0 ? (
+            {!isLoaded ? (
+              <div className="flex items-center justify-center h-[300px] text-gray-400">
+                <p>Carregando...</p>
+              </div>
+            ) : filteredTodos.length > 0 ? (
               filteredTodos.map(todo => (
                 <TodoItem 
                   key={todo.id} 
