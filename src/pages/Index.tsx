@@ -15,8 +15,12 @@ interface Todo {
 
 const Index = () => {
   const [todos, setTodos] = useState<Todo[]>(() => {
-    const saved = localStorage.getItem('dyad-todos');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('dyad-todos');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
   });
   const [filter, setFilter] = useState<FilterType>('all');
 
@@ -26,21 +30,22 @@ const Index = () => {
 
   const addTodo = (text: string) => {
     const newTodo: Todo = {
-      id: crypto.randomUUID(),
+      // Usando um fallback caso crypto.randomUUID não esteja disponível
+      id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       text,
       completed: false,
     };
-    setTodos([newTodo, ...todos]);
+    setTodos(prev => [newTodo, ...prev]);
   };
 
   const toggleTodo = (id: string) => {
-    setTodos(todos.map(todo => 
+    setTodos(prev => prev.map(todo => 
       todo.id === id ? { ...todo, completed: !todo.completed } : todo
     ));
   };
 
   const deleteTodo = (id: string) => {
-    setTodos(todos.filter(todo => todo.id !== id));
+    setTodos(prev => prev.filter(todo => todo.id !== id));
   };
 
   const filteredTodos = todos.filter(todo => {

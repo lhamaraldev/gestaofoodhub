@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export type FilterType = 'all' | 'active' | 'completed';
 
@@ -39,5 +40,4 @@ const TodoFilters = ({ currentFilter, onFilterChange, total }: TodoFiltersProps)
   );
 };
 
-import { cn } from '@/lib/utils';
 export default TodoFilters;
