@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { ClipboardList, Plus, Search, Moon, LogOut, User, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import TodoItem from '@/components/TodoItem';
 import CreateTodoModal from '@/components/CreateTodoModal';
 import { MadeWithDyad } from "@/components/made-with-dyad";
+import { useAuth } from '@/components/AuthProvider';
 
 export type Priority = 'Baixa' | 'Média' | 'Alta';
 
@@ -21,6 +21,7 @@ export interface Todo {
 }
 
 const Index = () => {
+  const { user, signOut } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'Todas' | 'Pendentes' | 'Concluídas'>('Todas');
@@ -29,7 +30,9 @@ const Index = () => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('dyad-tasks-v3');
+    // Usando o ID do usuário para salvar tarefas específicas por conta
+    const storageKey = `dyad-tasks-${user?.id}`;
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         setTodos(JSON.parse(saved));
@@ -38,13 +41,14 @@ const Index = () => {
       }
     }
     setIsLoaded(true);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('dyad-tasks-v3', JSON.stringify(todos));
+    if (isLoaded && user?.id) {
+      const storageKey = `dyad-tasks-${user?.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(todos));
     }
-  }, [todos, isLoaded]);
+  }, [todos, isLoaded, user?.id]);
 
   const addTodo = (newTodo: Omit<Todo, 'id' | 'completed'>) => {
     const task: Todo = {
@@ -87,13 +91,22 @@ const Index = () => {
             <h1 className="text-xl font-bold text-gray-900">Tarefas</h1>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-slate-900 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="w-6 h-6 bg-slate-900 rounded-full flex items-center justify-center">
+                <User className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-xs font-medium text-gray-600 truncate max-w-[100px]">
+                {user?.email?.split('@')[0]}
+              </span>
             </div>
-            <button className="text-gray-500 hover:text-gray-700">
+            <button className="text-gray-400 hover:text-gray-600 transition-colors">
               <Moon className="w-5 h-5" />
             </button>
-            <button className="text-gray-500 hover:text-gray-700">
+            <button 
+              onClick={() => signOut()}
+              className="text-gray-400 hover:text-red-500 transition-colors"
+              title="Sair"
+            >
               <LogOut className="w-5 h-5" />
             </button>
           </div>
