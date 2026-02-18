@@ -59,7 +59,7 @@ const Index = () => {
 
       setTodos(mappedTodos);
     } catch (error: any) {
-      showError("Erro ao carregar tarefas. Verifique se a tabela 'todos' existe no Supabase.");
+      showError("Erro ao carregar tarefas.");
     } finally {
       setLoading(false);
     }
@@ -100,6 +100,7 @@ const Index = () => {
       showSuccess("Tarefa criada com sucesso!");
     } catch (error: any) {
       showError("Erro ao criar tarefa: " + error.message);
+      throw error; // Repassa o erro para o modal tratar o estado de carregamento
     }
   };
 
